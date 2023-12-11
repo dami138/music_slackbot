@@ -91,7 +91,7 @@ def handle_thumb_click(ack, body, client):
     if btnName == ":thumbsup: 좋아요":
         new_thumb_value = current_value_result.data[0]['thumb'] + 1
     else:
-        new_thumb_value = current_value_result.data[0]['thumb'] -1
+        new_thumb_value = current_value_result.data[0]['thumb'] - 1
 
     supabase_client.table("music").update({"thumb": new_thumb_value}).eq("youtube_url", f"https://www.youtube.com/watch?v={video_id}").execute()
 
@@ -183,9 +183,15 @@ def user_music(ack, say, command):
     slack_id = re.search('<@(.*)\|', command['text']).group(1)    
 
     musics = supabase_client.table("music").select("*").eq("slack_id",slack_id).order("created_at",desc=True).limit(3).execute()
-    msg = ""
-    for i,music in enumerate(musics.data):
-        msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
+
+    if musics.data == []:
+        msg = f"<@{slack_id}> 유저가 곡을 추가하지 않았습니다."
+
+    else:
+        msg = ""
+        for i,music in enumerate(musics.data):
+            msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
+
     say(msg)
     
 
