@@ -44,30 +44,41 @@ def recommend(ack, say):
 
     say(f"<@{music['slack_id']}>님의 추천 음악: {music['title']} \n{music['youtube_url']}")
 
-# todo: 제목 기반 음악 추가 기능
 # 음악 추가
 @app.command("/add_music")
 def add_music(ack, say, command):
     ack()
-    youtube_url = command['text']
-    video_id = re.search('v=([0-9A-Za-z_-]{11})', youtube_url).group(1)
+    text = command['text']
+    match= re.search('v=([0-9A-Za-z_-]{11})', text)
 
-    # 비디오 정보 요청
-    response = youtube.videos().list(
-        part='snippet',
-        id=video_id
-    ).execute()
+    # 유튜브 링크 기반 음악 추가 
+    if match:
+        video_id = match.group(1)
+        response = youtube.videos().list(
+            part='snippet',
+            id=video_id
+        ).execute()
+
+    # 제목 기반 음악 추가 
+    else:
+        response = youtube.search().list(
+            part='snippet',
+            q=text,
+            type='video',
+            maxResults=1
+        ).execute()
 
     # 제목과 설명 추출    
-    title = response['items'][0]['snippet']['title']
+    youtube_url = "https://www.youtube.com/watch?v=" + response['items'][0]['id']['videoId']
+    title       = response['items'][0]['snippet']['title']
     description = response['items'][0]['snippet']['description']
-    artist = response['items'][0]['snippet']['channelTitle']    
+    artist      = response['items'][0]['snippet']['channelTitle']    
 
-    music_data = {  "slack_id":command['user_id'],
-                    "title":title,
-                    "description":description,
-                    "artist":artist,
-                    "youtube_url":command['text']}
+    music_data = {  "slack_id"      :command['user_id'],
+                    "title"         :title,
+                    "description"   :description,
+                    "artist"        :artist,
+                    "youtube_url"   :youtube_url}
     
     client.table("music").insert(music_data).execute()    
     say(f"{music_data['title']} 이(가) 추가되었습니다.")
@@ -78,7 +89,7 @@ def list_music(ack, say, command):
     ack()
     count = int(command['text'])
 
-    musics = client.table("music").select("*",count=count).order("created_at",desc=True).execute()
+    musics = client.table("music").select("*").order("created_at",desc=True).limit(count).execute()
     msg = ""
     for i,music in enumerate(musics.data):
         msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
@@ -92,7 +103,7 @@ def user_music(ack, say, command):
     print(command)
     slack_id = re.search('<@(.*)\|', command['text']).group(1)    
 
-    musics = client.table("music").select("*",count=3).eq("slack_id",slack_id).order("created_at",desc=True).execute()
+    musics = client.table("music").select("*").eq("slack_id",slack_id).order("created_at",desc=True).limit(3).execute()
     msg = ""
     for i,music in enumerate(musics.data):
         msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
