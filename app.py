@@ -39,12 +39,12 @@ def message_handler(message, say):
 def recommend(ack, say):
     ack()
     
-    musics=client.table("music").select("*").execute()
-    music = random.choice(musics.data)
+    musics = client.table("music").select("*").execute()
+    music  = random.choice(musics.data)
 
     say(f"<@{music['slack_id']}>님의 추천 음악: {music['title']} \n{music['youtube_url']}")
 
-
+# todo: 제목 기반 음악 추가 기능
 # 음악 추가
 @app.command("/add_music")
 def add_music(ack, say, command):
@@ -72,12 +72,36 @@ def add_music(ack, say, command):
     client.table("music").insert(music_data).execute()    
     say(f"{music_data['title']} 이(가) 추가되었습니다.")
 
-
-# 이번주 추가된 전체 음악 리스트를 재생목록으로 만들어서 하나의 링크로 반환
-@app.command("/list_music")
+# 최신 추가된 음악 리스트 n개 반환
+@app.command("/new_music")
 def list_music(ack, say, command):
     ack()
+    count = int(command['text'])
+
+    musics = client.table("music").select("*",count=count).order("created_at",desc=True).execute()
+    msg = ""
+    for i,music in enumerate(musics.data):
+        msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
+    say(msg)
     
+    
+# 유저이름을 입력하면 해당 유저가 최근 추가한 음악 3개 반환
+@app.command("/user_music")
+def user_music(ack, say, command):
+    ack()    
+    print(command)
+    slack_id = re.search('<@(.*)\|', command['text']).group(1)    
+
+    musics = client.table("music").select("*",count=3).eq("slack_id",slack_id).order("created_at",desc=True).execute()
+    msg = ""
+    for i,music in enumerate(musics.data):
+        msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
+    say(msg)
+    
+
+# todo: 음악 삭제, 추천버튼
+    
+
 
 if __name__ == "__main__":
     SocketModeHandler(app, SLACK_APP_TOKEN).start()
