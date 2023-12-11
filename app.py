@@ -180,7 +180,6 @@ def list_music(ack, say, command):
 @app.command("/user_music")
 def user_music(ack, say, command):
     ack()    
-    print(command)
     slack_id = re.search('<@(.*)\|', command['text']).group(1)    
 
     musics = supabase_client.table("music").select("*").eq("slack_id",slack_id).order("created_at",desc=True).limit(3).execute()
@@ -189,6 +188,16 @@ def user_music(ack, say, command):
         msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
     say(msg)
     
+
+@app.command("/topn_music")
+def top10_music(ack, say, command):
+    ack()
+    count = int(command['text'])
+    musics = supabase_client.table("music").select("*").order("thumb",desc=True).limit(count).execute()
+    msg = ""
+    for i,music in enumerate(musics.data):
+        msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
+    say(msg)
 
 # todo: 음악 삭제
     
