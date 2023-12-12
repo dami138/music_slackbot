@@ -19,6 +19,7 @@ SLACK_APP_TOKEN         = os.getenv('SLACK_APP_TOKEN')
 SUPABASE_URL            = os.getenv('SUPABASE_URL')
 SUPABASE_KEY            = os.getenv('SUPABASE_KEY')     
 GOOGLE_KEY              = os.getenv('GOOGLE_KEY')
+GOOGLE_CLIENT_SECRET    = os.getenv('GOOGLE_CLIENT_SECRET')
 
 supabase_client  = create_client(SUPABASE_URL, SUPABASE_KEY)
 youtube = build('youtube', 'v3', developerKey=GOOGLE_KEY)
@@ -179,7 +180,8 @@ def add_music(ack, say, command):
         ).execute()
 
     # 제목과 설명 추출    
-    youtube_url = "https://www.youtube.com/watch?v=" + response['items'][0]['id']['videoId']
+    video_id    = response['items'][0]['id']['videoId']
+    youtube_url = "https://www.youtube.com/watch?v=" + video_id
     title       = response['items'][0]['snippet']['title']
     description = response['items'][0]['snippet']['description']
     artist      = response['items'][0]['snippet']['channelTitle']    
@@ -188,7 +190,8 @@ def add_music(ack, say, command):
                     "title"         :title,
                     "description"   :description,
                     "artist"        :artist,
-                    "youtube_url"   :youtube_url}
+                    "youtube_url"   :youtube_url,
+                    "video_id"      :video_id}
     
     supabase_client.table("music").insert(music_data).execute()    
     say(f"{music_data['title']} 이(가) 추가되었습니다.")
@@ -229,14 +232,14 @@ def user_music(ack, say, command):
 def top10_music(ack, say, command):
     ack()
     count = int(command['text'])
-    musics = supabase_client.table("music").select("*").order("thumb",desc=True).limit(count).execute()
+    musics = supabase_client.table("music").select("*").order("likes",desc=True).limit(count).execute()
     msg = ""
     for i,music in enumerate(musics.data):
         msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
     say(msg)
 
+
 # todo: 음악 삭제
-    
 
 
 if __name__ == "__main__":
