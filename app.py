@@ -28,20 +28,47 @@ app = App(
     signing_secret=SLACK_SIGNING_SECRET
 )
 
-# 각종 이벤트를 annotation 안에 설정하면 된다.
+
+# 'like' 테이블에서 해당 유저가 '좋아요'한 곡을 가져옵니다.
+def get_liked_musics(user_id):
+    liked_musics = supabase_client.table("like").select("music_id").eq("liked_by", user_id).execute().data
+    return liked_musics
+
+# 해당 유저가 '좋아요' 하지 않은 곡을 가져옵니다.
+def get_unliked_musics(user_id):
+    # 'music' 테이블에서 모든 곡을 가져옵니다.
+    all_musics = supabase_client.table("music").select("*").execute().data
+
+    # 'like' 테이블에서 해당 유저가 좋아요한 곡을 가져옵니다.
+    liked_musics = get_liked_musics(user_id)
+    liked_music_ids = set(music["music_id"] for music in liked_musics)
+
+    # 유저가 좋아요하지 않은 곡을 필터링합니다.
+    unliked_musics = [music for music in all_musics if music["id"] not in liked_music_ids]
+    return unliked_musics
+
+# 작동 확인
 @app.event("message")
 @app.event("app_mention")
 def message_handler(message, say):   
     say(f"Hello <@{message['user']}>")
 
-# 아무거나 냅다 하나 추천
+# '좋아요' 하지 않은 음악 중 랜덤으로 추천
 @app.command("/recommend")
 def recommend(ack, body, client):
     ack()
-    
-    musics = supabase_client.table("music").select("*").execute()
-    music  = random.choice(musics.data)
 
+    user_id = body["user_id"]    
+    unliked_musics = get_unliked_musics(user_id)
+
+    if unliked_musics==[]:
+        client.chat_postMessage(
+            channel=body["channel_id"],
+            text="더이상 추천할 음악이 없습니다."
+        )
+        return
+    
+    music   = random.choice()        
 
     client.chat_postMessage(
         channel=body["channel_id"],
@@ -88,11 +115,15 @@ def handle_thumb_click(ack, body, client):
     music = supabase_client.table("music").select("id").eq("youtube_url", f"https://www.youtube.com/watch?v={video_id}").execute()
     music_id = music.data[0]['id']
 
+    # 좋아요 정보 있는지 확인
+    liked = supabase_client.table("like").select("id").eq("music_id",music_id).eq("liked_by",user_id).execute()
+
     if btnName == ":thumbsup: 좋아요":
-        supabase_client.table("like").insert({"music_id":music_id, "liked_by":user_id}).execute()   
+        if liked.data == []:
+            supabase_client.table("like").insert({"music_id":music_id, "liked_by":user_id}).execute()   
         
     else:
-        supabase_client.table("like").delete().eq("liked_by", user_id).eq("music_id", music_id).execute()
+        supabase_client.table("like").delete().eq("id", liked.data[0]["id"]).execute()
 
     # 기존 메시지 업데이트
     new_button_text = ":thumbsup: 좋아요" if btnName == ":thumbsup: 좋아요 취소" else ":thumbsup: 좋아요 취소"
