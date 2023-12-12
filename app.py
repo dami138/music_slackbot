@@ -68,8 +68,8 @@ def recommend(ack, body, client):
             text="더이상 추천할 음악이 없습니다."
         )
         return
-    
-    music   = random.choice()        
+
+    music   = random.choice(unliked_musics)      
 
     client.chat_postMessage(
         channel=body["channel_id"],
@@ -181,6 +181,12 @@ def add_music(ack, say, command):
 
     # 제목과 설명 추출    
     video_id    = response['items'][0]['id']['videoId']
+
+    exist_data = supabase_client.table("music").select("slack_id").eq("video_id",video_id).execute().data
+    if exist_data :
+        say(f"<@{exist_data[0]['slack_id']}>님이 이미 추가한 곡입니다.")
+        return
+
     youtube_url = "https://www.youtube.com/watch?v=" + video_id
     title       = response['items'][0]['snippet']['title']
     description = response['items'][0]['snippet']['description']
