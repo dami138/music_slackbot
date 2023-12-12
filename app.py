@@ -160,10 +160,19 @@ def handle_thumb_click(ack, body, client):
 def add_music(ack, say, command):
     ack()
     text = command['text']
-    match= re.search('v=([0-9A-Za-z_-]{11})', text)
+    match   = re.search('v=([0-9A-Za-z_-]{11})', text)
+    match2  = re.search(r"youtu\.be/([^?]+)", text)
+
     # 유튜브 링크 기반 음악 추가 
     if match:
         video_id = match.group(1)
+        response = youtube.videos().list(
+            part='snippet',
+            id=video_id
+        ).execute()
+
+    elif match2:
+        video_id = match2.group(1)
         response = youtube.videos().list(
             part='snippet',
             id=video_id
