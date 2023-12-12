@@ -161,7 +161,6 @@ def add_music(ack, say, command):
     ack()
     text = command['text']
     match= re.search('v=([0-9A-Za-z_-]{11})', text)
-
     # 유튜브 링크 기반 음악 추가 
     if match:
         video_id = match.group(1)
@@ -178,9 +177,8 @@ def add_music(ack, say, command):
             type='video',
             maxResults=1
         ).execute()
+        video_id    = response['items'][0]['id']['videoId']
 
-    # 제목과 설명 추출    
-    video_id    = response['items'][0]['id']['videoId']
     youtube_url = "https://www.youtube.com/watch?v=" + video_id
     title       = response['items'][0]['snippet']['title']
     description = response['items'][0]['snippet']['description']
@@ -246,7 +244,8 @@ def top10_music(ack, say, command):
 
 
 # todo: 음악 삭제
-
+# todo: 음악 추가 시 삭제 버튼도 옆에 만들기,,
+# todo: 유튜브 재생목록 연동 가능한지 확인
 
 if __name__ == "__main__":
     SocketModeHandler(app, SLACK_APP_TOKEN).start()
