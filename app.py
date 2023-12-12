@@ -85,15 +85,14 @@ def handle_thumb_click(ack, body, client):
 
     btnName = body["message"]["blocks"][1]["elements"][0]["text"]["text"]
 
-    #supabase에서 해당 음악의 좋아요 수 +1/-1
-    current_value_result = supabase_client.table("music").select("thumb").eq("youtube_url", f"https://www.youtube.com/watch?v={video_id}").execute()
+    music = supabase_client.table("music").select("id").eq("youtube_url", f"https://www.youtube.com/watch?v={video_id}").execute()
+    music_id = music.data[0]['id']
 
     if btnName == ":thumbsup: 좋아요":
-        new_thumb_value = current_value_result.data[0]['thumb'] + 1
+        supabase_client.table("like").insert({"music_id":music_id, "liked_by":user_id}).execute()   
+        
     else:
-        new_thumb_value = current_value_result.data[0]['thumb'] - 1
-
-    supabase_client.table("music").update({"thumb": new_thumb_value}).eq("youtube_url", f"https://www.youtube.com/watch?v={video_id}").execute()
+        supabase_client.table("like").delete().eq("liked_by", user_id).eq("music_id", music_id).execute()
 
     # 기존 메시지 업데이트
     new_button_text = ":thumbsup: 좋아요" if btnName == ":thumbsup: 좋아요 취소" else ":thumbsup: 좋아요 취소"
