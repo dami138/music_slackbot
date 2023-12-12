@@ -181,16 +181,16 @@ def add_music(ack, say, command):
 
     # 제목과 설명 추출    
     video_id    = response['items'][0]['id']['videoId']
-
-    exist_data = supabase_client.table("music").select("slack_id").eq("video_id",video_id).execute().data
-    if exist_data :
-        say(f"<@{exist_data[0]['slack_id']}>님이 이미 추가한 곡입니다.")
-        return
-
     youtube_url = "https://www.youtube.com/watch?v=" + video_id
     title       = response['items'][0]['snippet']['title']
     description = response['items'][0]['snippet']['description']
     artist      = response['items'][0]['snippet']['channelTitle']    
+
+    exist_data = supabase_client.table("music").select("slack_id").eq("video_id",video_id).execute().data
+    if exist_data :
+        say(f"{title}은(는) <@{exist_data[0]['slack_id']}>님이 이미 추가한 곡입니다.")
+        return
+
 
     music_data = {  "slack_id"      :command['user_id'],
                     "title"         :title,
