@@ -97,6 +97,7 @@ def recommend(ack, body, client):
         ]
     )
 
+# 좋아요 버튼 이벤트 리스너
 @app.action("button_click")
 def handle_thumb_click(ack, body, client):
     # 요청 확인
@@ -157,9 +158,10 @@ def handle_thumb_click(ack, body, client):
 
 # 음악 추가
 @app.command("/add_music")
-def add_music(ack, say, command):
+def add_music(ack, body, client):
     ack()
-    text = command['text']
+    
+    text = body['text']
     match   = re.search('v=([0-9A-Za-z_-]{11})', text)
     match2  = re.search(r"youtu\.be/([^?]+)", text)
 
@@ -195,21 +197,67 @@ def add_music(ack, say, command):
 
     exist_data = supabase_client.table("music").select("slack_id").eq("video_id",video_id).execute().data
     if exist_data :
-        say(f"{title}은(는) <@{exist_data[0]['slack_id']}>님이 이미 추가한 곡입니다.")
+        client.chat_postMessage(channel=body["channel_id"], text=f"{title}은(는) <@{exist_data[0]['slack_id']}>님이 이미 추가한 곡입니다.")
         return
 
 
-    music_data = {  "slack_id"      :command['user_id'],
+    music_data = {  "slack_id"      :body['user_id'],
                     "title"         :title,
                     "description"   :description,
                     "artist"        :artist,
                     "youtube_url"   :youtube_url,
                     "video_id"      :video_id}
     
-    supabase_client.table("music").insert(music_data).execute()    
-    say(f"{music_data['title']} 이(가) 추가되었습니다.")
+    supabase_client.table("music").insert(music_data).execute()   
+    
+    client.chat_postMessage(
+        channel=body["channel_id"],
+        blocks=[
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"{music_data['title']} 이(가) 추가되었습니다. \n{music_data['youtube_url']}"
+                }
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": ":x: 등록 취소하기",
+                        },
+                        "action_id": "cancel_button_click"  # 버튼 액션 ID
+                    }
+                ]
+            }
+        ]
+    )
 
-# 최신 추가된 음악 리스트 n개 반환
+# 음악 삭제 버튼 이벤트 리스너
+@app.action("cancel_button_click")
+def handle_cancel_click(ack, body, client):
+    ack()
+
+    # 버튼 클릭에 대한 정보
+    user_id    = body["user"]["id"]
+    channel_id = body["channel"]["id"]
+    message_ts = body["container"]["message_ts"]
+
+    text = body["message"]["blocks"][0]["text"]["text"]
+    match= re.search('v=([0-9A-Za-z_-]{11})', text)
+    video_id = match.group(1)
+
+    # 음악 삭제
+    supabase_client.table("music").delete().eq("slack_id",user_id).eq("video_id",video_id).execute()
+
+    # 기존 메시지 삭제
+    client.chat_delete(channel=channel_id, ts=message_ts)
+    return    
+
+# 최근 추가된 음악 리스트 n개 반환
 @app.command("/new_music")
 def list_music(ack, say, command):
     ack()
@@ -220,7 +268,6 @@ def list_music(ack, say, command):
     for i,music in enumerate(musics.data):
         msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
     say(msg)
-    
     
 # 유저이름을 입력하면 해당 유저가 최근 추가한 음악 3개 반환
 @app.command("/user_music")
@@ -234,15 +281,15 @@ def user_music(ack, say, command):
         msg = f"<@{slack_id}> 유저가 곡을 추가하지 않았습니다."
 
     else:
-        msg = ""
+        msg = f"<@{slack_id}> 유저가 최근 추가한 곡입니다. \n"
         for i,music in enumerate(musics.data):
             msg += f"{i+1}: {music['title']} \n{music['youtube_url']} \n"
 
     say(msg)
     
-
+# 좋아요가 많은 음악 리스트 n개 반환
 @app.command("/topn_music")
-def top10_music(ack, say, command):
+def topN_music(ack, say, command):
     ack()
     count = int(command['text'])
     musics = supabase_client.table("music").select("*").order("likes",desc=True).limit(count).execute()
@@ -252,8 +299,6 @@ def top10_music(ack, say, command):
     say(msg)
 
 
-# todo: 음악 삭제
-# todo: 음악 추가 시 삭제 버튼도 옆에 만들기,,
 # todo: 유튜브 재생목록 연동 가능한지 확인
 
 if __name__ == "__main__":
